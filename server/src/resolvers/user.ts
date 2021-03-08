@@ -45,6 +45,16 @@ export class UserResolver {
 		return user;
 	}
 
+	@Mutation(() => Boolean)
+	async deleteUser(@Ctx() { em }: MyContext, @Arg('id') id: number) {
+		try {
+			await em.nativeDelete(User, { id });
+			return true;
+		} catch (error) {
+			return false;
+		}
+	}
+
 	@Mutation(() => UserResponse)
 	async register(
 		@Arg('options', () => UsenamePasswordInput) options: UsenamePasswordInput,
@@ -57,6 +67,16 @@ export class UserResolver {
 					{
 						field: 'Username',
 						message: 'Length must be greater than 2 charecters'
+					}
+				]
+			};
+		}
+		if (password.length <= 5) {
+			return {
+				errors: [
+					{
+						field: 'Password',
+						message: 'Length must be greater than 5 charecters'
 					}
 				]
 			};
