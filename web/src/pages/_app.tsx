@@ -8,7 +8,7 @@ const client = createClient({
 	fetchOptions: { credentials: 'include' }
 });
 
-function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps }: any) {
 	return (
 		<Provider value={client}>
 			<ChakraProvider resetCSS theme={theme}>

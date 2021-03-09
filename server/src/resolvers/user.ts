@@ -11,6 +11,7 @@ import {
 import { MyContext } from 'src/types';
 import argon2 from 'argon2';
 import { User } from '../entities/User';
+import { EntityManager } from '@mikro-orm/postgresql';
 
 @InputType()
 class UsenamePasswordInput {
@@ -82,14 +83,21 @@ export class UserResolver {
 			};
 		}
 		const hashedPassword = await argon2.hash(password);
-		const user = em.create(User, {
-			username,
-			password: hashedPassword
-		});
+		let user;
 		try {
-			await em.persistAndFlush(user);
+			const result = await (em as EntityManager)
+				.createQueryBuilder(User)
+				.getKnexQuery()
+				.insert({
+					username,
+					password: hashedPassword,
+					created_at: new Date(),
+					updated_at: new Date()
+				})
+				.returning('*');
+			user = result[0];
 		} catch (error) {
-			if (error.code === '23505') {
+			if (error.detail.includes('already exists')) {
 				return {
 					errors: [
 						{
