@@ -1,3 +1,9 @@
-const Index = () => <div>Next Js</div>;
+import Navbar from '../components/Navbar';
+
+const Index = () => (
+	<>
+		<Navbar />
+	</>
+);
 
 export default Index;
