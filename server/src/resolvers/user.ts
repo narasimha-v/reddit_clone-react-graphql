@@ -2,7 +2,6 @@ import {
 	Arg,
 	Ctx,
 	Field,
-	InputType,
 	Mutation,
 	ObjectType,
 	Query,
@@ -12,15 +11,11 @@ import { MyContext } from 'src/types';
 import argon2 from 'argon2';
 import { User } from '../entities/User';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { COOKIE_NAME } from '../constants';
-
-@InputType()
-class UsenamePasswordInput {
-	@Field()
-	username: string;
-	@Field()
-	password: string;
-}
+import { COOKIE_NAME, FORGOT_PASSWORD_PREFIX } from '../constants';
+import { UsernamePasswordInput } from '../utils/UsernamePasswordInput';
+import { validateRegister } from '../utils/validateRegister';
+import { sendMail } from '../utils/sendEmail';
+import { v4 as uuid } from 'uuid';
 
 @ObjectType()
 class FieldError {
@@ -47,6 +42,72 @@ export class UserResolver {
 		return user;
 	}
 
+	@Mutation(() => UserResponse)
+	async changePassword(
+		@Ctx() { em, redis, req }: MyContext,
+		@Arg('token') token: string,
+		@Arg('newPassword') newPassword: string
+	): Promise<UserResponse> {
+		if (newPassword.length <= 5) {
+			return {
+				errors: [
+					{
+						field: 'newPassword',
+						message: 'Length must be greater than 5 charecters'
+					}
+				]
+			};
+		}
+		const userId = await redis.get(FORGOT_PASSWORD_PREFIX + token);
+		if (!userId) {
+			return {
+				errors: [
+					{
+						field: 'token',
+						message: 'token expired'
+					}
+				]
+			};
+		}
+		const user = await em.findOne(User, { id: parseInt(userId) });
+		if (!user) {
+			return {
+				errors: [
+					{
+						field: 'token',
+						message: 'user no longer exists'
+					}
+				]
+			};
+		}
+		user.password = await argon2.hash(newPassword);
+		await em.persistAndFlush(user);
+		await redis.del(FORGOT_PASSWORD_PREFIX + token);
+		req.session.userId = user.id;
+		return { user };
+	}
+
+	@Mutation(() => Boolean)
+	async forgotPassword(
+		@Ctx() { em, redis }: MyContext,
+		@Arg('email') email: string
+	) {
+		const user = await em.findOne(User, { email });
+		if (!user) return true;
+		const token = uuid();
+		await redis.set(
+			FORGOT_PASSWORD_PREFIX + token,
+			user.id,
+			'ex',
+			1000 * 60 * 60 * 24 * 3
+		);
+		await sendMail(
+			email,
+			`<a href='http://localhost:3000/change-password/${token}'>reset password</a>`
+		);
+		return true;
+	}
+
 	@Mutation(() => Boolean)
 	async deleteUser(@Ctx() { em }: MyContext, @Arg('id') id: number) {
 		try {
@@ -59,30 +120,12 @@ export class UserResolver {
 
 	@Mutation(() => UserResponse)
 	async register(
-		@Arg('options', () => UsenamePasswordInput) options: UsenamePasswordInput,
+		@Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
 		@Ctx() { em, req }: MyContext
 	): Promise<UserResponse> {
-		const { username, password } = options;
-		if (username.length <= 2) {
-			return {
-				errors: [
-					{
-						field: 'Username',
-						message: 'Length must be greater than 2 charecters'
-					}
-				]
-			};
-		}
-		if (password.length <= 5) {
-			return {
-				errors: [
-					{
-						field: 'Password',
-						message: 'Length must be greater than 5 charecters'
-					}
-				]
-			};
-		}
+		const { username, password, email } = options;
+		const errors = validateRegister(options);
+		if (errors) return { errors };
 		const hashedPassword = await argon2.hash(password);
 		let user;
 		try {
@@ -92,6 +135,7 @@ export class UserResolver {
 				.insert({
 					username,
 					password: hashedPassword,
+					email,
 					created_at: new Date(),
 					updated_at: new Date()
 				})
@@ -115,21 +159,27 @@ export class UserResolver {
 
 	@Mutation(() => UserResponse)
 	async login(
-		@Arg('options', () => UsenamePasswordInput) options: UsenamePasswordInput,
+		@Arg('usernameOrEmail') usernameOrEmail: string,
+		@Arg('password') password: string,
 		@Ctx() { em, req }: MyContext
 	): Promise<UserResponse> {
-		const user = await em.findOne(User, { username: options.username });
+		const user = await em.findOne(
+			User,
+			usernameOrEmail.includes('@')
+				? { email: usernameOrEmail }
+				: { username: usernameOrEmail }
+		);
 		if (!user) {
 			return {
 				errors: [
 					{
-						field: 'username',
+						field: 'usernameOrEmail',
 						message: `Usernsme doesn't exist`
 					}
 				]
 			};
 		}
-		const valid = await argon2.verify(user.password, options.password);
+		const valid = await argon2.verify(user.password, password);
 		if (!valid) {
 			return {
 				errors: [
