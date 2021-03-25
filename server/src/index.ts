@@ -9,6 +9,7 @@ import { createConnection } from 'typeorm';
 import { COOKIE_NAME, __prod__ } from './constants';
 import { Post, User } from './entities';
 import { HelloResolver, PostResolver, UserResolver } from './resolvers';
+import path from 'path';
 
 const main = async () => {
 	await createConnection({
@@ -18,7 +19,8 @@ const main = async () => {
 		password: 'postgres',
 		logging: true,
 		synchronize: true,
-		entities: [Post, User]
+		entities: [Post, User],
+		migrations: [path.join(__dirname, './migrations/*')]
 	});
 
 	const app = express();
