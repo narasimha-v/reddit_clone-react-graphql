@@ -12,7 +12,7 @@ import { HelloResolver, PostResolver, UserResolver } from './resolvers';
 import path from 'path';
 
 const main = async () => {
-	await createConnection({
+	const conn = await createConnection({
 		type: 'postgres',
 		database: 'liredditv2',
 		username: 'postgres',
@@ -22,6 +22,11 @@ const main = async () => {
 		entities: [Post, User],
 		migrations: [path.join(__dirname, './migrations/*')]
 	});
+	await conn.runMigrations();
+	/**
+	 * Delete multiple posts
+	 * await Post.delete({});
+	 */
 
 	const app = express();
 	const RedisStore = connectRedis(session);
