@@ -49,7 +49,7 @@ const Navbar: React.FC<NavbarProps> = () => {
 		}
 	};
 	return (
-		<Flex bg='facebook.300' p={4} position='sticky' top={0} zIndex={1}>
+		<Flex bg='linkedin.500' p={4} position='sticky' top={0} zIndex={1}>
 			<Box ml={'auto'}>{body()}</Box>
 		</Flex>
 	);
