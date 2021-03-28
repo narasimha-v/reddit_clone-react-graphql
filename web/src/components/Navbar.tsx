@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Flex, Link } from '@chakra-ui/layout';
+import { Box, Flex, Heading, Link } from '@chakra-ui/layout';
 import NextLink from 'next/link';
 import { useLogoutMutation, useMeQuery } from '../generated/graphql';
 import { Button } from '@chakra-ui/button';
@@ -49,7 +49,18 @@ const Navbar: React.FC<NavbarProps> = () => {
 		}
 	};
 	return (
-		<Flex bg='linkedin.500' p={4} position='sticky' top={0} zIndex={1}>
+		<Flex
+			bg='linkedin.500'
+			p={4}
+			position='sticky'
+			top={0}
+			zIndex={1}
+			alignItems='center'>
+			<NextLink href='/'>
+				<Link>
+					<Heading color={'whiteAlpha.900'}>LiReddit</Heading>
+				</Link>
+			</NextLink>
 			<Box ml={'auto'}>{body()}</Box>
 		</Flex>
 	);

@@ -8,10 +8,12 @@ import {
 } from 'urql';
 import { pipe, tap } from 'wonka';
 import {
+	DeletePostMutationVariables,
 	LoginMutation,
 	LogoutMutation,
 	MeDocument,
 	MeQuery,
+	PostQueryVariables,
 	RegisterMutation,
 	VoteMutationVariables
 } from '../generated/graphql';
@@ -112,6 +114,12 @@ export const createUrqlClient = (ssrExchange: any, ctx: any) => {
 									{ id: postId, points: newPoints, voteStatus: value }
 								);
 							}
+						},
+						deletePost: (_result, args, cache, info) => {
+							cache.invalidate({
+								__typename: 'Post',
+								id: (args as DeletePostMutationVariables).id
+							});
 						},
 						createPost: (_result, args, cache, info) => {
 							const allFields = cache.inspectFields('Query');
