@@ -1,4 +1,4 @@
-import { DeleteIcon } from '@chakra-ui/icons';
+import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import { Flex, Stack } from '@chakra-ui/layout';
 import {
 	Box,
@@ -11,6 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { withUrqlClient } from 'next-urql';
 import NextLink from 'next/link';
+import { useRouter } from 'next/router';
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import UpdootSection from '../components/UpdootSection';
@@ -31,6 +32,7 @@ const Index = () => {
 	});
 	const [{ data: meData }] = useMeQuery();
 	const [{}, deletePost] = useDeletePostMutation();
+	const router = useRouter();
 	if (!data && !fetching) {
 		return (
 			<Flex my={4}>
@@ -75,6 +77,17 @@ const Index = () => {
 									<Flex flex={1} justifyContent='flex-end'>
 										<Box my={4}>
 											<IconButton
+												aria-label='edit '
+												colorScheme='green'
+												size='lg'
+												icon={<EditIcon w={4} h={4} color='whiteAlpha.900' />}
+												onClick={async () => {
+													router.push(`/post/edit/${p.id}`);
+												}}
+												isActive
+											/>
+											<IconButton
+												mx={4}
 												aria-label='delete '
 												colorScheme='red'
 												size='lg'
@@ -82,6 +95,7 @@ const Index = () => {
 												onClick={async () => {
 													await deletePost({ id: p.id });
 												}}
+												isActive
 											/>
 										</Box>
 									</Flex>

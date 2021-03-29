@@ -1,4 +1,4 @@
-import { DeleteIcon } from '@chakra-ui/icons';
+import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import { Box, Heading, IconButton, Spinner, Stack } from '@chakra-ui/react';
 import { withUrqlClient } from 'next-urql';
 import { useRouter } from 'next/router';
@@ -10,7 +10,6 @@ import {
 	usePostQuery
 } from '../../generated/graphql';
 import { createUrqlClient } from '../../utils/createUrqlClient';
-import { isServer } from '../../utils/isServer';
 
 const Post = () => {
 	const router = useRouter();
@@ -48,15 +47,28 @@ const Post = () => {
 			{meData?.me?.id === data.post.creator.id && (
 				<Box my={4}>
 					<IconButton
+						aria-label='edit '
+						colorScheme='green'
+						size='lg'
+						icon={<EditIcon w={4} h={4} color='whiteAlpha.900' />}
+						onClick={async () => {
+							if (!data.post) return;
+							router.push(`/post/edit/${data.post.id}`);
+						}}
+						isActive
+					/>
+					<IconButton
 						aria-label='delete '
 						colorScheme='red'
 						size='lg'
+						mx={4}
 						icon={<DeleteIcon w={4} h={4} color='whiteAlpha.900' />}
 						onClick={async () => {
 							if (!data.post) return;
 							await deletePost({ id: data.post.id });
 							router.replace('/');
 						}}
+						isActive
 					/>
 				</Box>
 			)}
