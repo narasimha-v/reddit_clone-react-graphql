@@ -1,4 +1,5 @@
-import { cacheExchange, Resolver } from '@urql/exchange-graphcache';
+import { gql } from '@urql/core';
+import { Cache, cacheExchange, Resolver } from '@urql/exchange-graphcache';
 import Router from 'next/router';
 import {
 	dedupExchange,
@@ -13,13 +14,19 @@ import {
 	LogoutMutation,
 	MeDocument,
 	MeQuery,
-	PostQueryVariables,
 	RegisterMutation,
 	VoteMutationVariables
 } from '../generated/graphql';
 import { betterUpdateQuery } from './betterUpdateQuery';
-import { gql } from '@urql/core';
 import { isServer } from './isServer';
+
+function invalidateAllPosts(cache: Cache) {
+	const allFields = cache.inspectFields('Query');
+	const fieldInfos = allFields.filter((info) => info.fieldName === 'posts');
+	fieldInfos.forEach((fi) => {
+		cache.invalidate('Query', 'posts', fi.arguments || {});
+	});
+}
 
 const errorExchange: Exchange = ({ forward }) => (ops$) => {
 	return pipe(
@@ -122,13 +129,7 @@ export const createUrqlClient = (ssrExchange: any, ctx: any) => {
 							});
 						},
 						createPost: (_result, args, cache, info) => {
-							const allFields = cache.inspectFields('Query');
-							const fieldInfos = allFields.filter(
-								(info) => info.fieldName === 'posts'
-							);
-							fieldInfos.forEach((fi) => {
-								cache.invalidate('Query', 'posts', fi.arguments || {});
-							});
+							invalidateAllPosts(cache);
 						},
 						logout: (_result, args, cache, info) => {
 							betterUpdateQuery<LogoutMutation, MeQuery>(
@@ -139,6 +140,7 @@ export const createUrqlClient = (ssrExchange: any, ctx: any) => {
 							);
 						},
 						login: (_result, args, cache, info) => {
+							invalidateAllPosts(cache);
 							betterUpdateQuery<LoginMutation, MeQuery>(
 								cache,
 								{ query: MeDocument },
