@@ -14,7 +14,7 @@ import {
 	UseMiddleware
 } from 'type-graphql';
 import { getConnection } from 'typeorm';
-import { Post, Updoot } from '../entities/index';
+import { Post, Updoot, User } from '../entities/index';
 import { isAuth } from '../middleware/isAuth';
 
 @InputType()
@@ -36,8 +36,24 @@ class PaginatedPosts {
 @Resolver(Post)
 export class PostResolver {
 	@FieldResolver(() => String)
-	textSnippet(@Root() root: Post) {
-		return root.text.slice(0, 50);
+	textSnippet(@Root() post: Post) {
+		return post.text.slice(0, 50);
+	}
+
+	@FieldResolver(() => User)
+	creator(@Root() post: Post, @Ctx() { userLoader }: MyContext) {
+		return userLoader.load(post.creatorId);
+	}
+
+	@FieldResolver(() => Int, { nullable: true })
+	async voteStatus(
+		@Root() post: Post,
+		@Ctx() { updootLoader, req }: MyContext
+	) {
+		const userId = req.session.userId;
+		if (!userId) return null;
+		const updoot = await updootLoader.load({ postId: post.id, userId });
+		return updoot ? updoot.value : null;
 	}
 
 	@Mutation(() => Boolean)
@@ -101,13 +117,8 @@ export class PostResolver {
 		const realLimit = Math.min(50, limit);
 		const realLimitPlusOne = realLimit + 1;
 		const replacements: any[] = [realLimitPlusOne];
-		let cursorIndex = 3;
-		if (req.session.userId) {
-			replacements.push(req.session.userId);
-		}
 		if (cursor) {
 			replacements.push(new Date(parseInt(cursor)));
-			cursorIndex = replacements.length;
 		}
 		/*
 		// Using query builder
@@ -125,22 +136,10 @@ export class PostResolver {
 		*/
 		const posts = await getConnection().query(
 			`
-			select p.*,
-			json_build_object(
-			'id', u.id,
-			'username', u.username,
-			'email', u.email,
-			'createdAt', u."createdAt",
-			'updatedAt', u."updatedAt"
-			) creator,
-    		${
-					req.session.userId
-						? '(select value from updoot where "userId" = $2 and "postId" = p.id) "voteStatus"'
-						: 'null as "voteStatus"'
-				}
+			select p.*
 			from post p
 			inner join public.user u on u.id = p."creatorId"
-			${cursor ? `where p."createdAt" < $${cursorIndex}` : ''}
+			${cursor ? `where p."createdAt" < $2` : ''}
 			order by p."createdAt" DESC
 			limit $1
 			`,
@@ -155,7 +154,7 @@ export class PostResolver {
 
 	@Query(() => Post, { nullable: true })
 	post(@Arg('id', () => Int) id: number): Promise<Post | undefined> {
-		return Post.findOne(id, { relations: ['creator'] });
+		return Post.findOne(id);
 	}
 
 	@Mutation(() => Post)

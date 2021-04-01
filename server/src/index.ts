@@ -10,6 +10,8 @@ import { COOKIE_NAME, __prod__ } from './constants';
 import { Post, Updoot, User } from './entities';
 import { HelloResolver, PostResolver, UserResolver } from './resolvers';
 import path from 'path';
+import { createUserLoader } from './utils/createUserLoader';
+import { createUpdootLoader } from './utils/createVoteStatusLoader';
 
 const main = async () => {
 	const conn = await createConnection({
@@ -54,7 +56,13 @@ const main = async () => {
 			resolvers: [HelloResolver, PostResolver, UserResolver],
 			validate: false
 		}),
-		context: ({ req, res }) => ({ req, res, redis })
+		context: ({ req, res }) => ({
+			req,
+			res,
+			redis,
+			userLoader: createUserLoader(),
+			updootLoader: createUpdootLoader()
+		})
 	});
 	apolloServer.applyMiddleware({
 		app,
