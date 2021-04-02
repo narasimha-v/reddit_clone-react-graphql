@@ -1,4 +1,5 @@
 import { ApolloServer } from 'apollo-server-express';
+import 'dotenv-safe/config';
 import connectRedis from 'connect-redis';
 import express from 'express';
 import session from 'express-session';
@@ -16,9 +17,7 @@ import { createUpdootLoader } from './utils/createVoteStatusLoader';
 const main = async () => {
 	const conn = await createConnection({
 		type: 'postgres',
-		database: 'liredditv2',
-		username: 'postgres',
-		password: 'postgres',
+		url: process.env.DATABASE_URL,
 		logging: true,
 		synchronize: true,
 		entities: [Post, User, Updoot],
@@ -32,7 +31,8 @@ const main = async () => {
 
 	const app = express();
 	const RedisStore = connectRedis(session);
-	const redis = new Redis();
+	const redis = new Redis(process.env.REDIS_URL);
+	app.set('proxy', 1);
 	app.use(
 		session({
 			name: COOKIE_NAME,
@@ -40,7 +40,7 @@ const main = async () => {
 				client: redis,
 				disableTouch: true
 			}),
-			secret: 'bdc97e5d-0bff-41e2-aa10-ff6628053290',
+			secret: process.env.SESSION_SECRET!,
 			cookie: {
 				maxAge: 1000 * 60 * 60 * 248365 * 10,
 				sameSite: 'lax',
@@ -66,10 +66,10 @@ const main = async () => {
 	});
 	apolloServer.applyMiddleware({
 		app,
-		cors: { origin: 'http://localhost:3000', credentials: true }
+		cors: { origin: process.env.CORS_ORIGIN, credentials: true }
 	});
-	app.listen(4000, () => {
-		console.log(`server started on localhost 4000`);
+	app.listen(parseInt(process.env.PORT!), () => {
+		console.log(`server started on localhost ${process.env.PORT}`);
 	});
 };
 
